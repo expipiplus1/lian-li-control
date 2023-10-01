@@ -1,5 +1,5 @@
 cabal-version:      3.0
-name:               lian-li-pump-control
+name:               lian-li-control
 version:            0.1.0.0
 license:            MIT
 license-file:       LICENSE
@@ -23,5 +23,23 @@ executable lian-li-pump-control
     , usb
     , vector
 
-  hs-source-dirs:   app
+  hs-source-dirs:   pump
+  default-language: GHC2021
+
+executable lian-li-fan-control
+  main-is:          Main.hs
+  ghc-options:      -threaded -Wall
+  build-depends:
+    , async
+    , base                  ^>=4.17.2.0
+    , bytestring
+    , hid
+    , optparse-applicative
+    , optparse-generic
+    , pretty-show
+    , storable-endian
+    , usb
+    , vector
+
+  hs-source-dirs:   fan
   default-language: GHC2021
