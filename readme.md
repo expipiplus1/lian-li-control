@@ -7,6 +7,37 @@ WARNING: the commands this program sends are not fully understood, while it
 hasn't bricked my devices yet, there are no guarantees that it won't
 put a pump or fan controller into an unrecoverable state
 
+## Nix Flake
+
+There's a flake, which when included in a system configuration adds a service
+which runs these programs on boot and wake from sleep.
+
+```nix
+{
+  inputs.lian-li-control.url = "github:expipiplus1/lian-li-control";
+  outputs = { lian-li-control, ... } {
+    nixosConfigurations.my-system = nixpkgs.lib.nixosSystem {
+      modules = [
+        lian-li-control.nixosModules.fan
+        lian-li-control.nixosModules.pump
+      ];
+
+      services.hardware.lian-li-pump-control = {
+        enable = true;
+        speed = "pwm";
+        color = "sync";
+      };
+
+      services.hardware.lian-li-fan-control = {
+        enable = true;
+        speed = "pwm";
+        color = "sync";
+      };
+    };
+  };
+}
+```
+
 ## Pumps
 
 Tested on the *Galahad II Performance* AIO. Reverse engineered with the help of
