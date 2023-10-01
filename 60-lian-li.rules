@@ -1,0 +1,2 @@
+# Lian-Li Galahad II Performance AIO
+SUBSYSTEM=="usb", ATTR{idVendor}=="0416", ATTR{idProduct}=="7371", MODE="0660", TAG+="uaccess"

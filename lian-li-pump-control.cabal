@@ -1,0 +1,27 @@
+cabal-version:      3.0
+name:               lian-li-pump-control
+version:            0.1.0.0
+license:            MIT
+license-file:       LICENSE
+author:             Ellie Hermaszewska
+maintainer:         git@monoid.al
+build-type:         Simple
+extra-source-files: 60-lian-li.rules
+
+executable lian-li-pump-control
+  main-is:          Main.hs
+  ghc-options:      -threaded -Wall
+  build-depends:
+    , async
+    , base                  ^>=4.17.2.0
+    , bytestring
+    , hid
+    , optparse-applicative
+    , optparse-generic
+    , pretty-show
+    , storable-endian
+    , usb
+    , vector
+
+  hs-source-dirs:   app
+  default-language: GHC2021
