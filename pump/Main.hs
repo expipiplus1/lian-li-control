@@ -10,6 +10,8 @@ module Main where
 
 import Control.Applicative (Alternative (..))
 import Control.Concurrent.Async
+import Control.Exception (bracket_)
+import Control.Exception.Base (bracket)
 import Control.Monad
 import Data.ByteString (ByteString)
 import Data.ByteString qualified as B (length)
@@ -22,6 +24,7 @@ import Data.Maybe
 import Data.Storable.Endian (peekBE)
 import Data.Word
 import Foreign (Storable (..), castPtr, plusPtr)
+import Foreign.ForeignPtr (finalizeForeignPtr)
 import Numeric (readHex)
 import Options.Applicative (header, progDesc)
 import Options.Applicative.Types (readerAsk)
@@ -30,9 +33,10 @@ import System.HID qualified as HID
 import System.IO
 import Text.ParserCombinators.ReadP
 import Text.Show.Pretty
+import Unsafe.Coerce (unsafeCoerce)
 
 main :: IO ()
-main = do
+main = withHID $ do
   opts <-
     getRecordWith
       ( header
@@ -55,8 +59,7 @@ main = do
   let paths = case unHelpful (device opts) of
         [] -> HID.devPath <$> defaultDevices
         ps -> ps
-  for_ paths \p -> do
-    h <- fromMaybe (error "couldn't open device") <$> HID.pathDevice p
+  for_ paths \p -> withPathDevice p \h -> do
     when (unHelpful (getSpeed opts)) do
       s <- getStatus h
       print (statusRPM s)
@@ -244,3 +247,16 @@ instance ParseField RPM where
     PWM <$ (guard . (== "pwm") . fmap toLower =<< readerAsk)
       <|> Manual <$> readField
   metavar _ = "pwm|INT"
+
+----------------------------------------------------------------
+-- Utils
+----------------------------------------------------------------
+
+withHID :: IO c -> IO c
+withHID = bracket_ HID.init HID.exit
+
+withPathDevice :: String -> (HID.Device -> IO c) -> IO c
+withPathDevice p = bracket (fromMaybe (error "couldn't open device") <$> HID.pathDevice p) closeDevice
+
+closeDevice :: HID.Device -> IO ()
+closeDevice = finalizeForeignPtr . unsafeCoerce

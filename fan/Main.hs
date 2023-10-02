@@ -1,6 +1,5 @@
 {-# LANGUAGE BlockArguments #-}
 {-# LANGUAGE DataKinds #-}
-{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
 
@@ -9,30 +8,24 @@
 module Main where
 
 import Control.Applicative (Alternative (..))
-import Control.Concurrent.Async
+import Control.Exception (bracket, bracket_)
 import Control.Monad
-import Data.ByteString (ByteString)
-import Data.ByteString qualified as B (length)
 import Data.ByteString qualified as BS
-import Data.ByteString.Unsafe qualified as BS
 import Data.Char (toLower)
 import Data.Foldable
-import Data.Functor (($>), (<&>))
+import Data.Functor (($>))
 import Data.Maybe
-import Data.Storable.Endian (peekBE)
 import Data.Word
-import Foreign (Bits (..), Storable (..), castPtr, plusPtr)
-import Numeric (readHex)
+import Foreign (Bits (..), finalizeForeignPtr)
 import Options.Applicative (header, progDesc)
 import Options.Applicative.Types (readerAsk)
 import Options.Generic
 import System.HID qualified as HID
 import System.IO
-import Text.ParserCombinators.ReadP
-import Text.Show.Pretty
+import Unsafe.Coerce (unsafeCoerce)
 
 main :: IO ()
-main = do
+main = withHID do
   opts <-
     getRecordWith
       ( header
@@ -54,8 +47,7 @@ main = do
   let paths = case unHelpful (device opts) of
         [] -> HID.devPath <$> defaultDevices
         ps -> ps
-  for_ paths \p -> do
-    h <- fromMaybe (error "couldn't open device") <$> HID.pathDevice p
+  for_ paths \p -> withPathDevice p \h -> do
     for_ (unHelpful (setColor opts)) (setColor' h)
     for_ (unHelpful (setSpeed opts)) (setRPM h)
 
@@ -102,9 +94,6 @@ setRPM d rpm =
               HID.writeOutputReport d $
                 BS.pack [0xe0, 0x20 + fromIntegral i, 0x00, s]
 
-pack64 :: [Word8] -> ByteString
-pack64 = BS.pack . take 64 . (<> repeat 0)
-
 ----------------------------------------------------------------
 -- Options
 ----------------------------------------------------------------
@@ -141,3 +130,16 @@ instance ParseField RPM where
     PWM <$ (guard . (== "pwm") . fmap toLower =<< readerAsk)
       <|> Manual <$> readField
   metavar _ = "pwm|INT"
+
+----------------------------------------------------------------
+-- Utils
+----------------------------------------------------------------
+
+withHID :: IO c -> IO c
+withHID = bracket_ HID.init HID.exit
+
+withPathDevice :: String -> (HID.Device -> IO c) -> IO c
+withPathDevice p = bracket (fromMaybe (error "couldn't open device") <$> HID.pathDevice p) closeDevice
+
+closeDevice :: HID.Device -> IO ()
+closeDevice = finalizeForeignPtr . unsafeCoerce
